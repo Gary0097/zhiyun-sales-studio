@@ -5,6 +5,64 @@
   var React = Q.host.React;
   var antd = Q.host.antd;
   var h = React.createElement;
+  function zySpark() { return h("span", { style: { fontSize: 13 } }, "\u2726"); }
+  function zyPushAgent(context) {
+    if (Q.setAgentContext) Q.setAgentContext(context);
+    else window.dispatchEvent(new CustomEvent("qwenpaw:agent-context", { detail: context }));
+  }
+  function AgentDock(props) {
+    var listRef = React.useRef(null);
+    React.useEffect(function () {
+      if (listRef.current) listRef.current.scrollTop = listRef.current.scrollHeight;
+    }, [props.messages]);
+    if (!props.open) return null;
+    var S = {
+      mask: { position: "fixed", inset: 0, background: "rgba(15,23,42,0.32)", zIndex: 1200 },
+      dock: { position: "fixed", top: 0, right: 0, bottom: 0, width: "min(420px,92vw)", background: "#ffffff", borderLeft: "1px solid #e3e8ef", boxShadow: "-10px 0 30px rgba(16,24,40,0.16)", zIndex: 1201, display: "flex", flexDirection: "column" },
+      chat: { display: "flex", flexDirection: "column", height: "100%" },
+      head: { padding: "14px 16px", background: "#ffffff", borderBottom: "1px solid #e3e8ef" },
+      close: { border: "none", background: "transparent", cursor: "pointer", fontSize: 18, lineHeight: 1, color: "#98a2b3", padding: "4px 8px", borderRadius: 6 },
+      list: { flex: "1 1 auto", overflow: "auto", padding: 16 },
+      msg: { display: "flex", flexDirection: "column", gap: 6, marginBottom: 14 },
+      bubble: { maxWidth: "92%", padding: "10px 12px", borderRadius: 11, fontSize: "12.5px", lineHeight: 1.6, boxShadow: "0 1px 2px rgba(16,24,40,0.04)", whiteSpace: "pre-wrap" },
+      card: { maxWidth: "92%", background: "#ffffff", border: "1px solid #e3e8ef", borderRadius: 11, padding: "12px 14px", boxShadow: "0 1px 2px rgba(16,24,40,0.04)", fontSize: 12.5 },
+      input: { padding: "12px 14px", background: "#ffffff", borderTop: "1px solid #e3e8ef" },
+      chips: { display: "flex", flexWrap: "wrap", gap: 8, marginTop: 10 },
+      chip: { border: "1px solid #e3e8ef", background: "#ffffff", borderRadius: 999, padding: "6px 12px", fontSize: 12, color: "#5b6472", cursor: "pointer" }
+    };
+    return h("div", null,
+      h("div", { style: S.mask, onClick: props.onClose }),
+      h("div", { style: S.dock },
+        h("div", { style: S.chat },
+          h("div", { style: S.head },
+            h("div", { style: { display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 } },
+              h("span", { style: { fontWeight: 650, fontSize: 15, color: "#1f2933" } }, "智能体助手 · " + (props.moduleLabel || "")),
+              h("button", { "aria-label": "close", onClick: props.onClose, style: S.close }, "\u2715")
+            ),
+            h("div", { style: { fontSize: 12, color: "#5b6472", marginTop: 8, lineHeight: 1.5 } }, "直接打字告诉我要做什么，或点击下方快捷指令，自动载入示例并交给智能体处理。"),
+            h("div", { style: S.chips },
+              (props.chips || []).map(function (c) {
+                return h("span", { key: c.key, style: S.chip, onClick: function () { props.onCommand(c.key, c.label); } }, c.label);
+              })
+            )
+          ),
+          h("div", { style: S.list, ref: listRef },
+            (props.messages || []).map(function (msg, i) {
+              var user = msg.role === "user";
+              return h("div", { key: i, style: Object.assign({}, S.msg, user ? { alignItems: "flex-end" } : { alignItems: "flex-start" }) },
+                h("div", { style: Object.assign({}, S.bubble, user ? { background: "#2563eb", color: "#fff", borderBottomRightRadius: 3 } : { background: "#ffffff", border: "1px solid #e3e8ef", color: "#1f2933", borderBottomLeftRadius: 3 }) }, msg.text),
+                msg.card ? h("div", { style: S.card }, msg.card) : null
+              );
+            })
+          ),
+          h("div", { style: S.input },
+            h(antd.Input, { value: props.draft, placeholder: props.placeholder || "例如：分析当前订单交付风险", onChange: function (e) { props.setDraft(e.target.value); }, onPressEnter: function (e) { if (props.draft.trim()) { props.onSend(props.draft); e.preventDefault(); } } }),
+            h(antd.Button, { type: "primary", style: { marginTop: 10, width: "100%" }, loading: props.busy, onClick: function () { if (props.draft.trim()) props.onSend(props.draft); } }, "发送")
+          )
+        )
+      )
+    );
+  }
   var Fragment = React.Fragment;
   var useState = React.useState;
   var useEffect = React.useEffect;
@@ -328,44 +386,6 @@
     );
   }
 
-  function AgentDock(props) {
-    var listRef = useRef(null);
-    useEffect(function () {
-      if (listRef.current) listRef.current.scrollTop = listRef.current.scrollHeight;
-    }, [props.messages]);
-    if (!props.open) return null;
-    return h("div", null,
-      h("div", { className: "zy-mask", onClick: props.onClose }),
-      h("div", { className: "zy-dock" },
-        h("div", { className: "zy-chat" },
-          h("div", { className: "zy-chat-head" },
-            h("div", { style: { display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 } },
-              h("span", { style: { fontWeight: 650, fontSize: 15, color: T.text } }, "智能体助手 · " + (props.moduleLabel || "")),
-              h("button", { "aria-label": "关闭", onClick: props.onClose, style: { border: "none", background: "transparent", cursor: "pointer", fontSize: 18, lineHeight: 1, color: T.sub, padding: "4px 8px", borderRadius: 6 } }, "✕")
-            ),
-            h("div", { className: "zy-tagline", style: { marginTop: 8 } }, "直接打字告诉我你要做什么，我会自动载入示例数据并运行对应模块。"),
-            h("div", { className: "zy-chips", style: { marginTop: 10 } },
-              props.modules.map(function (mod) {
-                return h("span", { key: mod.key, className: "zy-chip", onClick: function () { props.onCommand(mod.key, mod.chipLabel); } }, mod.chipLabel || ("运行「" + mod.label + "」"));
-              })
-            )
-          ),
-          h("div", { className: "zy-chat-list", ref: listRef },
-            (props.messages || []).map(function (msg, i) {
-              return h("div", { key: i, className: "zy-msg " + (msg.role === "user" ? "zy-msg-user" : "zy-msg-bot") },
-                h("div", { className: "zy-msg-bubble" }, msg.text),
-                msg.card ? h("div", { className: "zy-msg-card" }, msg.card) : null
-              );
-            })
-          ),
-          h("div", { className: "zy-chat-input" },
-            h(antd.Input, { value: props.draft, placeholder: "例如：帮我评估这3家供应商 / 计算补货量 / 监控风险", onChange: function (e) { props.setDraft(e.target.value); }, onPressEnter: function (e) { if (props.draft.trim()) { props.onSend(props.draft); e.preventDefault(); } } }),
-            h(antd.Button, { type: "primary", style: { marginTop: 10, width: "100%" }, loading: props.busy, onClick: function () { if (props.draft.trim()) props.onSend(props.draft); } }, "发送")
-          )
-        )
-      )
-    );
-  }
 
   function SalesStudio() {
     var mods = [
@@ -484,10 +504,90 @@
     var resultsState = useState({}), results = resultsState[0], setResults = resultsState[1];
     var runningState = useState(null), running = runningState[0], setRunning = runningState[1];
     var reviewerState = useState(""), reviewer = reviewerState[0], setReviewer = reviewerState[1];
-    var agentOpenState = useState(false), agentOpen = agentOpenState[0], setAgentOpen = agentOpenState[1];
-    var draftState = useState(""), draft = draftState[0], setDraft = draftState[1];
-    var messagesState = useState([]), messages = messagesState[0], setMessages = messagesState[1];
-    var busyState = useState(false), busy = busyState[0], setBusy = busyState[1];
+    var agentOpenState = React.useState(false), agentOpen = agentOpenState[0], setAgentOpen = agentOpenState[1];
+    var agentDraftState = React.useState(""), agentDraft = agentDraftState[0], setAgentDraft = agentDraftState[1];
+    var agentMsgState = React.useState([]), agentMessages = agentMsgState[0], setAgentMessages = agentMsgState[1];
+    var agentBusyState = React.useState(false), agentBusy = agentBusyState[0], setAgentBusy = agentBusyState[1];
+    var agentSessionRef = React.useRef("app-dock-" + Date.now().toString(36));
+    function agentAdd(role, text, card) { setAgentMessages(function (prev) { return prev.concat([{ role: role, text: text, card: card }]); }); }
+    function agentCommand(key, label) {
+      var prompts = {"bi":"请基于真实销售数据生成本月销售 BI 分析。","segment":"请对客户进行分层，并给出重点跟进建议。","performance":"请复盘近期销售业绩，找出增长与下滑原因。"};
+      var prompt = prompts[key] || (label || key);
+      startAgentChat(prompt);
+    }
+    function startAgentChat(text) {
+      text = String(text == null ? "" : text).trim();
+      if (!text || agentBusy) return;
+      var history = (agentMessages || []).filter(function (m) { return m && m.role !== "system"; }).map(function (m) { return { role: m.role === "bot" ? "assistant" : "user", text: m.text || "" }; }).slice(-12);
+      agentAdd("user", text, null);
+      agentAdd("bot", "", null);
+      setAgentBusy(true);
+      zyPushAgent({ app_id: "zhiyun-sales-studio", kind: "chat", label: text, summary: {}, source_type: "real" });
+      function setLastBot(value) {
+        setAgentMessages(function (prev) { var next = prev.slice(); next[next.length - 1] = { role: "bot", text: value, card: null }; return next; });
+      }
+      var full = "";
+      Q.host.fetch("/zhiyun-sales-studio/agent/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text: text, session_id: agentSessionRef.current, user_id: "default", history: history })
+      })
+      .then(function (response) {
+        if (!response.ok || !response.body) {
+          return response.text().then(function (t) { throw new Error("HTTP " + response.status + (t && t.trim() ? ": " + t.trim() : "")); });
+        }
+        var reader = response.body.getReader();
+        var decoder = new TextDecoder();
+        var buffer = "";
+        function read() {
+          return reader.read().then(function (chunk) {
+            if (chunk.done) return;
+            buffer += decoder.decode(chunk.value, { stream: true });
+            var lines = buffer.split("\n");
+            buffer = lines.pop();
+            lines.forEach(function (line) {
+              line = line.trim();
+              if (line.indexOf("data: ") !== 0) return;
+              var raw = line.slice(6).trim();
+              if (!raw || raw === "[DONE]") return;
+              var event;
+              try { event = JSON.parse(raw); } catch (e) { return; }
+              if (event.error) {
+                if (!full) { full = "智能体返回失败：" + event.error; setLastBot(full); }
+                return;
+              }
+              if (event.type === "text" && event.delta && typeof event.text === "string" && event.text) {
+                full += event.text;
+                setLastBot(full);
+              }
+              if (event.type === "message" && event.status === "completed" && Array.isArray(event.content)) {
+                for (var i = 0; i < event.content.length; i++) {
+                  var part = event.content[i];
+                  if (part && part.type === "text" && !part.delta && typeof part.text === "string" && part.text) {
+                    full = part.text;
+                    setLastBot(full);
+                  }
+                }
+              }
+              if (event.status === "failed" && !full) {
+                full = event.error || "智能体返回失败";
+                setLastBot(full);
+              }
+            });
+            return read();
+          });
+        }
+        return read();
+      })
+      .then(function () {
+        setAgentBusy(false);
+        if (!full) setLastBot("（智能体未返回可显示内容）");
+      })
+      .catch(function (err) {
+        setAgentBusy(false);
+        setLastBot("调用智能体失败：" + (err && err.message ? err.message : String(err)));
+      });
+    }
     var sourceState = useState("真实"), source = sourceState[0], setSource = sourceState[1];
     var message = antd.App.useApp().message;
     var activeMod = mods.find(function (m) { return m.key === active; });
@@ -565,38 +665,7 @@
       );
     }
 
-    function agentCommand(key, prompt) {
-      var mod = mods.find(function (m) { return m.key === key; });
-      setMessages(function (prev) { return prev.concat([{ role: "user", text: prompt || mod.label }]); });
-      setBusy(true); setActive(key);
-      if (isBlank(inputs[key])) {
-        setInput(key, clone(sampleFor(mod)));
-        message.info("已载入示例数据，可替换为真实业务数据");
-      }
-      setTimeout(function () {
-        runModule(key, sampleFor(mod)).then(function (data) {
-          setMessages(function (prev) { return prev.concat([{ role: "bot", text: mod.label + "：已生成可审阅工件，请切换回界面确认结果。", card: artifactCard(key, data) }]); });
-        }).catch(function () {
-          setMessages(function (prev) { return prev.concat([{ role: "bot", text: "执行失败，请检查输入后重试。" }]); });
-        }).finally(function () { setBusy(false); });
-      }, 300);
-    }
 
-    function agentSend(text) {
-      setMessages(function (prev) { return prev.concat([{ role: "user", text: text }]); });
-      setBusy(true);
-      var key = detectModule(text);
-      var mod = mods.find(function (m) { return m.key === key; });
-      setActive(key);
-      if (isBlank(inputs[key])) { setInput(key, clone(sampleFor(mod))); message.info("已载入示例数据，可替换为真实业务数据"); }
-      setTimeout(function () {
-        runModule(key, sampleFor(mod)).then(function (data) {
-          setMessages(function (prev) { return prev.concat([{ role: "bot", text: "已为你执行「" + mod.label + "」，下方是结果摘要，可回界面审阅与导出。", card: artifactCard(key, data) }]); });
-        }).catch(function () {
-          setMessages(function (prev) { return prev.concat([{ role: "bot", text: "执行「" + mod.label + "」出现问题，请检查输入后重试。" }]); });
-        }).finally(function () { setBusy(false); });
-      }, 300);
-    }
 
     function renderInput(mod) {
       if (mod.inputKind === "text") {
@@ -670,7 +739,7 @@
           ) : null)
         )
       ),
-      h(AgentDock, { open: agentOpen, onClose: function () { setAgentOpen(false); }, modules: mods, moduleLabel: activeMod ? activeMod.label : "", messages: messages, draft: draft, setDraft: setDraft, busy: busy, onSend: agentSend, onCommand: agentCommand })
+      h(AgentDock, { open: agentOpen, onClose: function () { setAgentOpen(false); }, moduleLabel: "销售协同中心", chips: [{ key: "bi", label: "销售 BI 分析" }, { key: "segment", label: "客户分层复盘" }, { key: "performance", label: "销售业绩复盘" }], messages: agentMessages, draft: agentDraft, setDraft: setAgentDraft, busy: agentBusy, onSend: startAgentChat, onCommand: agentCommand })
     );
   }
 
