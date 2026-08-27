@@ -18,6 +18,9 @@ class UiContractTests(unittest.TestCase):
         self.assertIn("分析本月销售趋势", self.source)
         self.assertNotIn("帮我评估这3家供应商 / 计算补货量 / 监控风险", self.source)
 
+    def test_requests_carry_bearer_token(self) -> None:
+        self.assertIn("zhiyun_token", self.source)
+
     def test_ui_does_not_render_raw_json_as_the_business_result(self) -> None:
         self.assertNotIn("JSON.stringify(result, null, 2)", self.source)
 
